@@ -59,6 +59,19 @@ contract DataPalace is Multicall {
     }
 
     /**
+     * @dev - Will delegate msg.sender to execute the saved calldata.
+     *
+     * @param _id - The id of the saved calldata.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amountOrCallOrId
+    ) external {
+        to.delegatecall(datas[amountOrCallOrId]);
+    }
+
+    /**
      * @dev - Returns the bytes memory for a specific call.
      * @param _id - The id of the saved calldata.
      * @return - The calldata for the specific call.

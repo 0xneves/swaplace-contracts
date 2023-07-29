@@ -8,5 +8,5 @@ interface IBaseSwap {
 
     function accept(uint256 id, address creator) external;
 
-    function cancelSwap(uint256 id) external;
+    function cancel(uint256 id) external;
 }

@@ -1,57 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {ITimedPvtSwap} from "./interfaces/swaps/ITimedPvtSwap.sol";
+import {ICallSwap} from "./interfaces/swaps/ICallSwap.sol";
 import {ITransfer} from "./interfaces/utils/ITransfer.sol";
 import {ISwap} from "./interfaces/swaps/ISwap.sol";
 
 error InvalidAddress(address caller);
-error InvalidExpiryPeriod(uint256 expiry);
 error InvalidSwap(uint256 id);
 
-contract TimedPvtSwap is ITimedPvtSwap, ISwap {
+contract CallSwap is ICallSwap, ISwap {
     uint256 public swapId;
 
-    mapping(uint256 => mapping(address => TimedPvtSwap)) private _timedPvtSwaps;
+    mapping(uint256 => mapping(address => BaseSwap)) private _baseSwaps;
 
-    mapping(uint256 => bool) public finalized;
+    mapping(uint256 => bool) public _finalized;
 
-    function create(TimedPvtSwap calldata swap) external returns (uint256) {
+    function create(BaseSwap calldata swap) external returns (uint256) {
         if (msg.sender == address(0)) {
             revert InvalidAddress(msg.sender);
-        }
-
-        if (swap.expiry < 1) {
-            revert InvalidExpiryPeriod(swap.expiry);
         }
 
         unchecked {
             swapId++;
         }
 
-        _timedPvtSwaps[swapId][msg.sender] = swap;
-        _timedPvtSwaps[swapId][msg.sender].expiry =
-            swap.expiry +
-            block.timestamp;
+        _baseSwaps[swapId][msg.sender] = swap;
 
         return swapId;
     }
 
     function accept(uint256 id, address creator) external {
-        if (finalized[id]) {
+        if (_finalized[id]) {
             revert InvalidSwap(id);
         }
-        finalized[id] = true;
+        _finalized[id] = true;
 
-        TimedPvtSwap memory swap = _timedPvtSwaps[id][creator];
-
-        if (swap.expiry < block.timestamp) {
-            revert InvalidExpiryPeriod(swap.expiry);
-        }
-
-        if (swap.allowed != address(0) && msg.sender != swap.allowed) {
-            revert InvalidAddress(msg.sender);
-        }
+        BaseSwap memory swap = _baseSwaps[id][creator];
 
         Asset[] memory assets = swap.asking;
 
@@ -81,24 +65,21 @@ contract TimedPvtSwap is ITimedPvtSwap, ISwap {
     }
 
     function cancel(uint256 id) external {
-        TimedPvtSwap memory swap = _timedPvtSwaps[id][msg.sender];
+        BaseSwap memory swap = _baseSwaps[id][msg.sender];
 
         if (
-            swap.biding.length == 0 ||
-            swap.asking.length == 0 ||
-            finalized[id] ||
-            swap.expiry < block.timestamp
+            swap.biding.length == 0 || swap.asking.length == 0 || _finalized[id]
         ) {
             revert InvalidSwap(id);
         }
 
-        finalized[id] = true;
+        _finalized[id] = true;
     }
 
     function getSwap(
         uint256 id,
         address creator
-    ) external view returns (TimedPvtSwap memory) {
-        return _timedPvtSwaps[id][creator];
+    ) external view returns (BaseSwap memory) {
+        return _baseSwaps[id][creator];
     }
 }

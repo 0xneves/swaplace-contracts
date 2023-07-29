@@ -3,10 +3,8 @@ pragma solidity ^0.8.17;
 
 import {ISwap} from "./ISwap.sol";
 
-interface ITimedPvtSwap {
-    function create(
-        ISwap.TimedPvtSwap calldata swap
-    ) external returns (uint256);
+interface ICallSwap {
+    function create(ISwap.BaseSwap calldata swap) external returns (uint256);
 
     function accept(uint256 id, address creator) external;
 

@@ -153,7 +153,7 @@ describe("Describe tests in the Timed Private Swap Contract", async function () 
 		const lastSwap = await Swaplace.swapId();
 
 		// Cancel the first swap
-		expect(await Swaplace.cancelSwap(lastSwap)).to.be.ok;
+		expect(await Swaplace.cancel(lastSwap)).to.be.ok;
 
 		const finalized = await Swaplace.finalized(lastSwap);
 		expect(finalized).to.be.equal(true);
@@ -188,7 +188,7 @@ describe("Describe tests in the Timed Private Swap Contract", async function () 
 
 		// Try to cancel the swap as owner
 		await expect(
-			Swaplace.cancelSwap(Number(lastSwap))
+			Swaplace.cancel(Number(lastSwap))
 		).to.be.revertedWithCustomError(Swaplace, `InvalidSwap`);
 	});
 
@@ -217,7 +217,7 @@ describe("Describe tests in the Timed Private Swap Contract", async function () 
 
 		// Create a second swap
 		await expect(
-			Swaplace.cancelSwap(Number(lastSwap))
+			Swaplace.cancel(Number(lastSwap))
 		).to.be.revertedWithCustomError(Swaplace, `InvalidSwap`);
 	});
 

@@ -9,11 +9,11 @@ error InvalidAddress(address caller);
 error InvalidSwap(uint256 id);
 
 contract PvtSwap is IPvtSwap, ISwap {
-    uint256 external swapId;
+    uint256 public swapId;
 
     mapping(uint256 => mapping(address => PvtSwap)) private _pvtSwaps;
 
-    mapping(uint256 => bool) private _finalized;
+    mapping(uint256 => bool) public _finalized;
 
     function create(PvtSwap calldata swap) external returns (uint256) {
         if (msg.sender == address(0)) {
@@ -68,7 +68,7 @@ contract PvtSwap is IPvtSwap, ISwap {
         }
     }
 
-    function cancelSwap(uint256 id) external {
+    function cancel(uint256 id) external {
         PvtSwap memory swap = _pvtSwaps[id][msg.sender];
 
         if (

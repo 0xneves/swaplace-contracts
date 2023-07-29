@@ -10,11 +10,11 @@ error InvalidExpiryPeriod(uint256 expiry);
 error InvalidSwap(uint256 id);
 
 contract TimedSwap is ITimedSwap, ISwap {
-    uint256 external swapId;
+    uint256 public swapId;
 
     mapping(uint256 => mapping(address => TimedSwap)) private _timedSwaps;
 
-    mapping(uint256 => bool) private _finalized;
+    mapping(uint256 => bool) public _finalized;
 
     function create(TimedSwap calldata swap) external returns (uint256) {
         if (msg.sender == address(0)) {
@@ -74,7 +74,7 @@ contract TimedSwap is ITimedSwap, ISwap {
         }
     }
 
-    function cancelSwap(uint256 id) external {
+    function cancel(uint256 id) external {
         TimedSwap memory swap = _timedSwaps[id][msg.sender];
 
         if (

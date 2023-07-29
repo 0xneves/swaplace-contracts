@@ -9,11 +9,11 @@ error InvalidAddress(address caller);
 error InvalidSwap(uint256 id);
 
 contract BaseSwap is IBaseSwap, ISwap {
-    uint256 external swapId;
+    uint256 public swapId;
 
     mapping(uint256 => mapping(address => BaseSwap)) private _baseSwaps;
 
-    mapping(uint256 => bool) private _finalized;
+    mapping(uint256 => bool) public _finalized;
 
     function create(BaseSwap calldata swap) external returns (uint256) {
         if (msg.sender == address(0)) {
@@ -64,7 +64,7 @@ contract BaseSwap is IBaseSwap, ISwap {
         }
     }
 
-    function cancelSwap(uint256 id) external {
+    function cancel(uint256 id) external {
         BaseSwap memory swap = _baseSwaps[id][msg.sender];
 
         if (
