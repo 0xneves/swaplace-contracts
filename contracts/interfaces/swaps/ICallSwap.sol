@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import {ISwap} from "./ISwap.sol";
 
 interface ICallSwap {
-    function create(ISwap.BaseSwap calldata swap) external returns (uint256);
+    function create(ISwap.CallSwap calldata swap) external returns (uint256);
 
     function accept(uint256 id, address creator) external;
 

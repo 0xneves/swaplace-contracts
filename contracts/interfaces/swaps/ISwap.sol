@@ -30,4 +30,9 @@ interface ISwap {
         Asset[] biding;
         Asset[] asking;
     }
+
+    struct CallSwap {
+        Asset[] biding;
+        Asset[] asking;
+    }
 }
