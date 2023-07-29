@@ -12,6 +12,11 @@ interface ISwap {
         Asset[] asking;
     }
 
+    struct CallSwap {
+        Asset[] biding;
+        Asset[] asking;
+    }
+
     struct PvtSwap {
         address allowed;
         Asset[] biding;
@@ -27,11 +32,6 @@ interface ISwap {
     struct TimedPvtSwap {
         address allowed;
         uint256 expiry;
-        Asset[] biding;
-        Asset[] asking;
-    }
-
-    struct CallSwap {
         Asset[] biding;
         Asset[] asking;
     }
