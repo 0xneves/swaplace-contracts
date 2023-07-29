@@ -10,13 +10,13 @@ error InvalidExpiryPeriod(uint256 expiry);
 error InvalidSwap(uint256 id);
 
 contract TimedPvtSwap is ITimedPvtSwap, ISwap {
-    uint256 public swapId;
+    uint256 external swapId;
 
     mapping(uint256 => mapping(address => TimedPvtSwap)) private _timedPvtSwaps;
 
-    mapping(uint256 => bool) public finalized;
+    mapping(uint256 => bool) external finalized;
 
-    function create(TimedPvtSwap calldata swap) public returns (uint256) {
+    function create(TimedPvtSwap calldata swap) external returns (uint256) {
         if (msg.sender == address(0)) {
             revert InvalidAddress(msg.sender);
         }
@@ -37,7 +37,7 @@ contract TimedPvtSwap is ITimedPvtSwap, ISwap {
         return swapId;
     }
 
-    function accept(uint256 id, address creator) public {
+    function accept(uint256 id, address creator) external {
         if (finalized[id]) {
             revert InvalidSwap(id);
         }
@@ -80,7 +80,7 @@ contract TimedPvtSwap is ITimedPvtSwap, ISwap {
         }
     }
 
-    function cancelSwap(uint256 id) public {
+    function cancelSwap(uint256 id) external {
         TimedPvtSwap memory swap = _timedPvtSwaps[id][msg.sender];
 
         if (
@@ -98,7 +98,7 @@ contract TimedPvtSwap is ITimedPvtSwap, ISwap {
     function getSwap(
         uint256 id,
         address creator
-    ) public view returns (TimedPvtSwap memory) {
+    ) external view returns (TimedPvtSwap memory) {
         return _timedPvtSwaps[id][creator];
     }
 }
