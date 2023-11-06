@@ -3,6 +3,9 @@ pragma solidity ^0.8.17;
 
 import {ISwap} from "./ISwap.sol";
 
+/**
+ * @dev Interface of the Swaplace implementation.
+ */
 interface ISwaplace {
     /**
      * @dev Allow users to create a swap.
@@ -48,9 +51,4 @@ interface ISwaplace {
      * NOTE: If the swaps doesn't exist, the values will be defaulted.
      */
     function getSwap(uint256 id) external view returns (ISwap.Swap memory);
-
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceID) external pure returns (bool);
 }
