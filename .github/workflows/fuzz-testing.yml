@@ -26,6 +26,8 @@ jobs:
               run: |
                   echo ${{ vars.DEPLOYER_PRIVATE_KEY }}
 
+            - uses: actions/checkout@v2
+
             - name: Set up node
               uses: actions/setup-node@v1
               with:
