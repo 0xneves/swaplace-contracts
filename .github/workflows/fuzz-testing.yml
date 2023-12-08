@@ -4,7 +4,6 @@ on:
     push:
         branches:
             - main
-            - test-actions
     pull_request:
 
 jobs:
@@ -22,10 +21,6 @@ jobs:
             DEPLOYER_PRIVATE_KEY: ${{ vars.DEPLOYER_PRIVATE_KEY }}
 
         steps:
-            - name: Show repo env vars
-              run: |
-                  echo ${{ vars.DEPLOYER_PRIVATE_KEY }}
-
             - uses: actions/checkout@v2
 
             - name: Set up node
