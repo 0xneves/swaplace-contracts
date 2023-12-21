@@ -72,7 +72,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
 
       it("Should be able to create a 1-N swap with ERC20", async function () {
@@ -98,7 +103,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
 
       it("Should be able to create a N-N swap with ERC20", async function () {
@@ -128,7 +138,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
 
       it("Should be able to create a 1-1 swap with ERC721", async function () {
@@ -150,7 +165,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
 
       it("Should be able to create a 1-N swap with ERC721", async function () {
@@ -176,7 +196,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
 
       it("Should be able to create a N-N swap with ERC721", async function () {
@@ -206,7 +231,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
       });
     });
 
@@ -302,7 +332,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
 
         await expect(
           await Swaplace.connect(acceptee).acceptSwap(
@@ -325,7 +360,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
 
         await expect(
           await Swaplace.connect(acceptee).acceptSwap(
@@ -390,7 +430,12 @@ describe("Swaplace", async function () {
 
         await expect(await Swaplace.connect(owner).createSwap(swap))
           .to.emit(Swaplace, "SwapCreated")
-          .withArgs(await Swaplace.totalSwaps(), owner.address, swap.expiry);
+          .withArgs(
+            await Swaplace.totalSwaps(),
+            owner.address,
+            swap.allowed,
+            swap.expiry,
+          );
 
         await expect(
           Swaplace.connect(acceptee).acceptSwap(await Swaplace.totalSwaps()),
