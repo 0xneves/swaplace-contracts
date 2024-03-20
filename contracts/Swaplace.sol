@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 
 import {IERC165} from "./interfaces/IERC165.sol";
 import {IErrors} from "./interfaces/IErrors.sol";
-import {ISwap} from "./interfaces/ISwap.sol";
 import {ISwaplace} from "./interfaces/ISwaplace.sol";
 import {ITransfer} from "./interfaces/ITransfer.sol";
 
@@ -14,7 +13,7 @@ import {ITransfer} from "./interfaces/ITransfer.sol";
  * Users can propose or accept swaps by allowing Swaplace to move their assets using the
  * `approve` or `permit` function.
  */
-contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
+contract Swaplace is ISwaplace, IErrors, IERC165 {
   /// @dev Swap Identifier counter.
   uint256 private _totalSwaps;
 
@@ -46,12 +45,12 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   /**
    * @dev See {ISwaplace-createSwap}.
    */
-  function createSwap(Swap calldata swap) public returns (uint256) {
+  function createSwap(Swap calldata swap) public payable returns (uint256) {
     assembly {
       sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
     }
 
-    uint256 swapId = packData(msg.sender, _totalSwaps);
+    uint256 swapId = encodeId(msg.sender, _totalSwaps);
     _swaps[swapId] = swap;
 
     (
@@ -59,7 +58,7 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
       ,
       uint8 valueReceiver,
       uint56 valueToReceive
-    ) = parseFullData(swap.config);
+    ) = decodeConfig(swap.config);
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
       if (msg.value != valueToReceive)
@@ -74,12 +73,14 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   /**
    * @dev See {ISwaplace-createLightSwap}.
    */
-  function createLightSwap(LightSwap calldata swap) public returns (uint256) {
+  function createLightSwap(
+    LightSwap calldata swap
+  ) public payable returns (uint256) {
     assembly {
       sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
     }
 
-    uint256 swapId = packData(msg.sender, _totalSwaps);
+    uint256 swapId = encodeId(msg.sender, _totalSwaps);
     _lightswaps[swapId] = swap;
 
     (
@@ -87,7 +88,7 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
       ,
       uint8 valueReceiver,
       uint56 valueToReceive
-    ) = parseFullData(swap.config);
+    ) = decodeConfig(swap.config);
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
       if (msg.value != valueToReceive)
@@ -102,8 +103,11 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   /**
    * @dev See {ISwaplace-acceptSwap}.
    */
-  function acceptSwap(uint256 swapId, address receiver) public returns (bool) {
-    (address owner, ) = parseData(swapId);
+  function acceptSwap(
+    uint256 swapId,
+    address receiver
+  ) public payable returns (bool) {
+    (address owner, ) = decodeId(swapId);
     Swap memory swap = _swaps[swapId];
 
     (
@@ -111,7 +115,7 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
       uint32 expiry,
       uint8 valueReceiver,
       uint56 valueToReceive
-    ) = parseFullData(swap.config);
+    ) = decodeConfig(swap.config);
 
     if (allowed != address(0) && allowed != msg.sender)
       revert InvalidAddress(msg.sender);
@@ -129,31 +133,49 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
       }
     }
 
-    Asset[] memory assets = swap.asking;
+    _transferFrom(msg.sender, owner, swap.asking);
+    _transferFrom(owner, receiver, swap.biding);
 
-    for (uint256 i = 0; i < assets.length; ) {
-      ITransfer(assets[i].addr).transferFrom(
-        msg.sender,
-        owner,
-        assets[i].amountOrId
-      );
-      assembly {
-        i := add(i, 1)
+    emit SwapAccepted(swapId, owner, msg.sender);
+
+    return true;
+  }
+
+  /**
+   * @dev See {ISwaplace-acceptLightSwap}.
+   */
+  function acceptLightSwap(
+    uint256 swapId,
+    address receiver
+  ) public payable returns (bool) {
+    (address owner, ) = decodeId(swapId);
+    Swap memory swap = _swaps[swapId];
+
+    (
+      address allowed,
+      uint32 expiry,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = decodeConfig(swap.config);
+
+    if (allowed != address(0) && allowed != msg.sender)
+      revert InvalidAddress(msg.sender);
+
+    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+    _swaps[swapId].config = 0;
+
+    if (valueToReceive > 0) {
+      if (valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
+        _payNativeEth(receiver, valueToReceive);
+      } else {
+        if (msg.value != valueToReceive)
+          revert InvalidValue(msg.value, valueToReceive);
+        _payNativeEth(owner, valueToReceive);
       }
     }
 
-    assets = swap.biding;
-
-    for (uint256 i = 0; i < assets.length; ) {
-      ITransfer(assets[i].addr).transferFrom(
-        owner,
-        receiver,
-        assets[i].amountOrId
-      );
-      assembly {
-        i := add(i, 1)
-      }
-    }
+    _transferFrom(msg.sender, owner, swap.asking);
+    _transferFrom(owner, receiver, swap.biding);
 
     emit SwapAccepted(swapId, owner, msg.sender);
 
@@ -164,15 +186,64 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
    * @dev See {ISwaplace-cancelSwap}.
    */
   function cancelSwap(uint256 swapId) public {
-    if (_swaps[swapId].owner != msg.sender) revert InvalidAddress(msg.sender);
+    (address owner, ) = decodeId(swapId);
+    if (owner != msg.sender) revert InvalidAddress(msg.sender);
 
-    (, uint256 expiry) = parseData(_swaps[swapId].config);
+    (
+      ,
+      uint32 expiry,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = decodeConfig(_swaps[swapId].config);
 
     if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+
+    if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE))
+      _payNativeEth(owner, valueToReceive);
 
     _swaps[swapId].config = 0;
 
     emit SwapCanceled(swapId, msg.sender);
+  }
+
+  /**
+   * @dev See {ISwaplace-cancelLightSwap}.
+   */
+  function cancelLightSwap(uint256 swapId) public {
+    (address owner, ) = decodeId(swapId);
+    if (owner != msg.sender) revert InvalidAddress(msg.sender);
+
+    (
+      ,
+      uint32 expiry,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = decodeConfig(_lightswaps[swapId].config);
+
+    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+
+    if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE))
+      _payNativeEth(owner, valueToReceive);
+
+    _lightswaps[swapId].config = 0;
+
+    emit SwapCanceled(swapId, msg.sender);
+  }
+
+  /**
+   * @dev Transfer 'assets' from 'from' to 'to'.
+   */
+  function _transferFrom(
+    address from,
+    address to,
+    Asset[] memory assets
+  ) internal {
+    for (uint256 i; i < assets.length; ) {
+      ITransfer(assets[i].addr).transferFrom(from, to, assets[i].amountOrId);
+      assembly {
+        i := add(i, 1)
+      }
+    }
   }
 
   /**
@@ -184,23 +255,23 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   }
 
   /**
-   * @dev See {ISwapFactory-packData}.
+   * @dev See {ISwapFactory-encodeId}.
    */
-  function packData(address addr, uint256 value) public pure returns (uint256) {
+  function encodeId(address addr, uint256 value) public pure returns (uint256) {
     return (uint256(uint160(addr)) << 96) | uint256(value);
   }
 
   /**
-   * @dev See {ISwapFactory-parseData}.
+   * @dev See {ISwapFactory-decodeId}.
    */
-  function parseData(uint256 config) public pure returns (address, uint256) {
+  function decodeId(uint256 config) public pure returns (address, uint256) {
     return (address(uint160(config >> 96)), uint256(config & ((1 << 96) - 1)));
   }
 
   /**
-   * @dev See {ISwapFactory-packFullData}.
+   * @dev See {ISwapFactory-encodeConfig}.
    */
-  function packFullData(
+  function encodeConfig(
     address allowed,
     uint256 expiry,
     uint8 valueReceiver,
@@ -214,9 +285,9 @@ contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   }
 
   /**
-   * @dev See {ISwapFactory-parseFullData}.
+   * @dev See {ISwapFactory-decodeConfig}.
    */
-  function parseFullData(
+  function decodeConfig(
     uint256 config
   ) public pure returns (address, uint32, uint8, uint56) {
     return (

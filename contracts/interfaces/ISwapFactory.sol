@@ -36,7 +36,7 @@ interface ISwapFactory {
    * @dev Packs `addr` and `value`.
    * This function returns the bitwise packing of `addr` and `value` as a uint256.
    */
-  function packData(
+  function encodeId(
     address addr,
     uint256 value
   ) external pure returns (uint256);
@@ -45,5 +45,5 @@ interface ISwapFactory {
    * @dev Parsing the `config`.
    * This function returns the extracted values for an  address and a uint96 value.
    */
-  function parseData(uint256 config) external pure returns (address, uint256);
+  function decodeId(uint256 config) external pure returns (address, uint256);
 }
