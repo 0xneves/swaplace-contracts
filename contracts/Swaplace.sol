@@ -2,9 +2,10 @@
 pragma solidity ^0.8.17;
 
 import {IERC165} from "./interfaces/IERC165.sol";
+import {IErrors} from "./interfaces/IErrors.sol";
+import {ISwap} from "./interfaces/ISwap.sol";
 import {ISwaplace} from "./interfaces/ISwaplace.sol";
 import {ITransfer} from "./interfaces/ITransfer.sol";
-import {SwapFactory} from "./SwapFactory.sol";
 
 /**
  * @author @0xneves | @blockful_io
@@ -13,28 +14,85 @@ import {SwapFactory} from "./SwapFactory.sol";
  * Users can propose or accept swaps by allowing Swaplace to move their assets using the
  * `approve` or `permit` function.
  */
-contract Swaplace is SwapFactory, ISwaplace, IERC165 {
+contract Swaplace is ISwaplace, ISwap, IErrors, IERC165 {
   /// @dev Swap Identifier counter.
   uint256 private _totalSwaps;
 
-  /// @dev Mapping of Swap ID to Swap struct. See {ISwap-Swap}.
+  /// @dev Mapping of Swap ID to Swap structs. See {ISwap-Swap/LightSwap}.
   mapping(uint256 => Swap) private _swaps;
+  mapping(uint256 => LightSwap) private _lightswaps;
+
+  /**
+   * @dev Getter function for _totalSwaps.
+   */
+  function totalSwaps() public view returns (uint256) {
+    return _totalSwaps;
+  }
+
+  /**
+   * @dev See {ISwaplace-getSwap}.
+   */
+  function getSwap(uint256 swapId) public view returns (Swap memory) {
+    return _swaps[swapId];
+  }
+
+  /**
+   * @dev See {ISwaplace-getSwap}.
+   */
+  function getLightSwap(uint256 swapId) public view returns (LightSwap memory) {
+    return _lightswaps[swapId];
+  }
 
   /**
    * @dev See {ISwaplace-createSwap}.
    */
   function createSwap(Swap calldata swap) public returns (uint256) {
-    if (swap.owner != msg.sender) revert InvalidAddress(msg.sender);
-
     assembly {
       sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
     }
 
-    uint256 swapId = _totalSwaps;
-
+    uint256 swapId = packData(msg.sender, _totalSwaps);
     _swaps[swapId] = swap;
 
-    (address allowed, ) = parseData(swap.config);
+    (
+      address allowed,
+      ,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = parseFullData(swap.config);
+
+    if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
+      if (msg.value != valueToReceive)
+        revert InvalidValue(msg.value, valueToReceive);
+    }
+
+    emit SwapCreated(swapId, msg.sender, allowed);
+
+    return swapId;
+  }
+
+  /**
+   * @dev See {ISwaplace-createLightSwap}.
+   */
+  function createLightSwap(LightSwap calldata swap) public returns (uint256) {
+    assembly {
+      sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
+    }
+
+    uint256 swapId = packData(msg.sender, _totalSwaps);
+    _lightswaps[swapId] = swap;
+
+    (
+      address allowed,
+      ,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = parseFullData(swap.config);
+
+    if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
+      if (msg.value != valueToReceive)
+        revert InvalidValue(msg.value, valueToReceive);
+    }
 
     emit SwapCreated(swapId, msg.sender, allowed);
 
@@ -45,23 +103,38 @@ contract Swaplace is SwapFactory, ISwaplace, IERC165 {
    * @dev See {ISwaplace-acceptSwap}.
    */
   function acceptSwap(uint256 swapId, address receiver) public returns (bool) {
+    (address owner, ) = parseData(swapId);
     Swap memory swap = _swaps[swapId];
 
-    (address allowed, uint256 expiry) = parseData(swap.config);
+    (
+      address allowed,
+      uint32 expiry,
+      uint8 valueReceiver,
+      uint56 valueToReceive
+    ) = parseFullData(swap.config);
 
     if (allowed != address(0) && allowed != msg.sender)
       revert InvalidAddress(msg.sender);
 
     if (expiry < block.timestamp) revert InvalidExpiry(expiry);
-
     _swaps[swapId].config = 0;
+
+    if (valueToReceive > 0) {
+      if (valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
+        _payNativeEth(receiver, valueToReceive);
+      } else {
+        if (msg.value != valueToReceive)
+          revert InvalidValue(msg.value, valueToReceive);
+        _payNativeEth(owner, valueToReceive);
+      }
+    }
 
     Asset[] memory assets = swap.asking;
 
     for (uint256 i = 0; i < assets.length; ) {
       ITransfer(assets[i].addr).transferFrom(
         msg.sender,
-        swap.owner,
+        owner,
         assets[i].amountOrId
       );
       assembly {
@@ -73,7 +146,7 @@ contract Swaplace is SwapFactory, ISwaplace, IERC165 {
 
     for (uint256 i = 0; i < assets.length; ) {
       ITransfer(assets[i].addr).transferFrom(
-        swap.owner,
+        owner,
         receiver,
         assets[i].amountOrId
       );
@@ -82,7 +155,7 @@ contract Swaplace is SwapFactory, ISwaplace, IERC165 {
       }
     }
 
-    emit SwapAccepted(swapId, swap.owner, msg.sender);
+    emit SwapAccepted(swapId, owner, msg.sender);
 
     return true;
   }
@@ -103,10 +176,55 @@ contract Swaplace is SwapFactory, ISwaplace, IERC165 {
   }
 
   /**
-   * @dev See {ISwaplace-getSwap}.
+   * @dev Pay native Ether to the receiver.
    */
-  function getSwap(uint256 swapId) public view returns (Swap memory) {
-    return _swaps[swapId];
+  function _payNativeEth(address receiver, uint256 value) internal {
+    (bool success, ) = receiver.call{value: value}("");
+    if (!success) revert InvalidValue(msg.value, value);
+  }
+
+  /**
+   * @dev See {ISwapFactory-packData}.
+   */
+  function packData(address addr, uint256 value) public pure returns (uint256) {
+    return (uint256(uint160(addr)) << 96) | uint256(value);
+  }
+
+  /**
+   * @dev See {ISwapFactory-parseData}.
+   */
+  function parseData(uint256 config) public pure returns (address, uint256) {
+    return (address(uint160(config >> 96)), uint256(config & ((1 << 96) - 1)));
+  }
+
+  /**
+   * @dev See {ISwapFactory-packFullData}.
+   */
+  function packFullData(
+    address allowed,
+    uint256 expiry,
+    uint8 valueReceiver,
+    uint56 valueToReceive
+  ) public pure returns (uint256) {
+    return
+      (uint256(uint160(allowed)) << 96) |
+      (uint256(expiry) << 64) |
+      (uint256(valueReceiver) << 56) |
+      uint256(valueToReceive);
+  }
+
+  /**
+   * @dev See {ISwapFactory-parseFullData}.
+   */
+  function parseFullData(
+    uint256 config
+  ) public pure returns (address, uint32, uint8, uint56) {
+    return (
+      address(uint160(config >> 96)),
+      uint32(config >> 64),
+      uint8(config >> 56),
+      uint56(config)
+    );
   }
 
   /**
@@ -118,12 +236,5 @@ contract Swaplace is SwapFactory, ISwaplace, IERC165 {
     return
       interfaceID == type(IERC165).interfaceId ||
       interfaceID == type(ISwaplace).interfaceId;
-  }
-
-  /**
-   * @dev Getter function for _totalSwaps.
-   */
-  function totalSwaps() public view returns (uint256) {
-    return _totalSwaps;
   }
 }
