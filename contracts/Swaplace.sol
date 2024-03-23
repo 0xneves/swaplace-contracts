@@ -265,7 +265,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    * @dev See {ISwapFactory-decodeId}.
    */
   function decodeId(uint256 config) public pure returns (address, uint256) {
-    return (address(uint160(config >> 96)), uint256(config & ((1 << 96) - 1)));
+    return (address(uint160(config >> 96)), uint256(config));
   }
 
   /**

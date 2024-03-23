@@ -81,7 +81,7 @@ interface ISwap {
    */
   struct LightSwap {
     uint256 config;
-    Asset[] biding;
-    Asset[] asking;
+    LightAsset[] biding;
+    LightAsset[] asking;
   }
 }

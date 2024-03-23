@@ -61,6 +61,11 @@ export async function makeSwap(
   const expiry: bigint =
     BigInt(config) & ((BigInt(1) << BigInt(96)) - BigInt(1));
 
+  const allowed: string = (BigInt(config) >> BigInt(96)).toString(16);
+  console.log(allowed);
+
+  // address(uint160(config >> 96)), uint256(config);
+
   // check for the current `block.timestamp` because `expiry` cannot be in the past
   const currentTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
   if (expiry < currentTimestamp) {
