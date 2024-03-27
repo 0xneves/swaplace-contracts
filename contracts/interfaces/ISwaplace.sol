@@ -31,6 +31,29 @@ interface ISwaplace is ISwap {
   event SwapCanceled(uint256 indexed swapId, address indexed owner);
 
   /**
+   * @dev Emitted when a new Light Swap is created.
+   */
+  event LightSwapCreated(
+    uint256 indexed swapId,
+    address indexed owner,
+    address indexed allowed
+  );
+
+  /**
+   * @dev Emitted when a LightSwap is accepted.
+   */
+  event LightSwapAccepted(
+    uint256 indexed swapId,
+    address indexed owner,
+    address indexed allowed
+  );
+
+  /**
+   * @dev Emitted when a Light Swap is canceled.
+   */
+  event LightSwapCanceled(uint256 indexed swapId, address indexed owner);
+
+  /**
    * @dev Allow users to create a Swap. Each new Swap self-increments its ID by one.
    *
    * Requirements:
@@ -42,6 +65,10 @@ interface ISwaplace is ISwap {
    * Emits a {SwapCreated} event.
    */
   function createSwap(Swap calldata Swap) external payable returns (uint256);
+
+  function createLightSwap(
+    LightSwap calldata Swap
+  ) external payable returns (uint256);
 
   /**
    * @dev Accepts a Swap. Once the Swap is accepted, the expiry is set
@@ -64,6 +91,11 @@ interface ISwaplace is ISwap {
     address receiver
   ) external payable returns (bool);
 
+  function acceptLightSwap(
+    uint256 swapId,
+    address receiver
+  ) external payable returns (bool);
+
   /**
    * @dev Cancels an active Swap by setting the expiry to zero.
    *
@@ -79,6 +111,8 @@ interface ISwaplace is ISwap {
    */
   function cancelSwap(uint256 swapId) external;
 
+  function cancelLightSwap(uint256 swapId) external;
+
   /**
    * @dev Retrieves the details of a Swap based on the `swapId` provided.
    *
@@ -87,4 +121,15 @@ interface ISwaplace is ISwap {
    * If the `owner` is the zero address, then the Swap doesn't exist.
    */
   function getSwap(uint256 swapId) external view returns (Swap memory);
+
+  /**
+   * @dev Retrieves the details of a Swap based on the `swapId` provided.
+   *
+   * NOTE: If the Swaps doesn't exist, the values will be defaulted to 0.
+   * You can check if a Swap exists by checking if the `owner` is the zero address.
+   * If the `owner` is the zero address, then the Swap doesn't exist.
+   */
+  function getLightSwap(
+    uint256 swapId
+  ) external view returns (LightSwap memory);
 }
