@@ -19,4 +19,9 @@ interface IErrors {
    * @dev Displayed when the `msg.value` doesn't match the swap request.
    */
   error InvalidValue();
+
+  /**
+   * @dev Displayed when a low level call failed to execute.
+   */
+  error InvalidCall();
 }
