@@ -22,7 +22,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
   mapping(uint256 => LightSwap) private _lightswaps;
 
   /**
-   * @dev Getter function for _totalSwaps.
+   * @dev Returns the total amount of created swaps in this contract.
    */
   function totalSwaps() public view returns (uint256) {
     return _totalSwaps;
@@ -36,7 +36,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
   }
 
   /**
-   * @dev See {ISwaplace-getSwap}.
+   * @dev See {ISwaplace-getLightSwap}.
    */
   function getLightSwap(uint256 swapId) public view returns (LightSwap memory) {
     return _lightswaps[swapId];
@@ -64,7 +64,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       if (msg.value != valueToReceive) revert InvalidValue();
     }
 
-    emit SwapCreated(swapId, msg.sender, allowed);
+    emit LightSwapCreated(swapId, msg.sender, allowed);
 
     return swapId;
   }
@@ -226,7 +226,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
 
   /**
    * @dev Transfer 'assets' from 'from' to 'to'.
-   * Where 0x23b872dd is the selector for the `transferFrom` function.
+   * Where 0x23b872dd is the selector of the `transferFrom` function.
    */
   function _transferFrom(
     address from,
@@ -234,10 +234,10 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     Asset[] memory assets
   ) internal {
     for (uint256 i; i < assets.length; ) {
-      (bool success, bytes memory response) = address(assets[i].addr).call(
+      (bool success, ) = address(assets[i].addr).call(
         abi.encodeWithSelector(0x23b872dd, from, to, assets[i].amountOrId)
       );
-      if (!success) revert(string(response));
+      if (!success) revert InvalidCall();
       assembly {
         i := add(i, 1)
       }
