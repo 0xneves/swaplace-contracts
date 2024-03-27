@@ -61,8 +61,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     ) = decodeConfig(swap.config);
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
-      if (msg.value != valueToReceive)
-        revert InvalidValue(msg.value, valueToReceive);
+      if (msg.value != valueToReceive) revert InvalidValue();
     }
 
     emit SwapCreated(swapId, msg.sender, allowed);
@@ -91,8 +90,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     ) = decodeConfig(swap.config);
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
-      if (msg.value != valueToReceive)
-        revert InvalidValue(msg.value, valueToReceive);
+      if (msg.value != valueToReceive) revert InvalidValue();
     }
 
     emit SwapCreated(swapId, msg.sender, allowed);
@@ -117,18 +115,16 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       uint56 valueToReceive
     ) = decodeConfig(swap.config);
 
-    if (allowed != address(0) && allowed != msg.sender)
-      revert InvalidAddress(msg.sender);
+    if (allowed != address(0) && allowed != msg.sender) revert InvalidAddress();
 
-    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+    if (expiry < block.timestamp) revert InvalidExpiry();
     _swaps[swapId].config = 0;
 
     if (valueToReceive > 0) {
       if (valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
         _payNativeEth(receiver, valueToReceive);
       } else {
-        if (msg.value != valueToReceive)
-          revert InvalidValue(msg.value, valueToReceive);
+        if (msg.value != valueToReceive) revert InvalidValue();
         _payNativeEth(owner, valueToReceive);
       }
     }
@@ -158,18 +154,16 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       uint56 valueToReceive
     ) = decodeConfig(swap.config);
 
-    if (allowed != address(0) && allowed != msg.sender)
-      revert InvalidAddress(msg.sender);
+    if (allowed != address(0) && allowed != msg.sender) revert InvalidAddress();
 
-    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+    if (expiry < block.timestamp) revert InvalidExpiry();
     _swaps[swapId].config = 0;
 
     if (valueToReceive > 0) {
       if (valueReceiver == uint(ValueReceiver.ACCEPTEE)) {
         _payNativeEth(receiver, valueToReceive);
       } else {
-        if (msg.value != valueToReceive)
-          revert InvalidValue(msg.value, valueToReceive);
+        if (msg.value != valueToReceive) revert InvalidValue();
         _payNativeEth(owner, valueToReceive);
       }
     }
@@ -187,7 +181,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    */
   function cancelSwap(uint256 swapId) public {
     (address owner, ) = decodeId(swapId);
-    if (owner != msg.sender) revert InvalidAddress(msg.sender);
+    if (owner != msg.sender) revert InvalidAddress();
 
     (
       ,
@@ -196,7 +190,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       uint56 valueToReceive
     ) = decodeConfig(_swaps[swapId].config);
 
-    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+    if (expiry < block.timestamp) revert InvalidExpiry();
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE))
       _payNativeEth(owner, valueToReceive);
@@ -211,7 +205,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    */
   function cancelLightSwap(uint256 swapId) public {
     (address owner, ) = decodeId(swapId);
-    if (owner != msg.sender) revert InvalidAddress(msg.sender);
+    if (owner != msg.sender) revert InvalidAddress();
 
     (
       ,
@@ -220,7 +214,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       uint56 valueToReceive
     ) = decodeConfig(_lightswaps[swapId].config);
 
-    if (expiry < block.timestamp) revert InvalidExpiry(expiry);
+    if (expiry < block.timestamp) revert InvalidExpiry();
 
     if (valueToReceive > 0 && valueReceiver == uint(ValueReceiver.ACCEPTEE))
       _payNativeEth(owner, valueToReceive);
@@ -232,6 +226,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
 
   /**
    * @dev Transfer 'assets' from 'from' to 'to'.
+   * Where 0x23b872dd is the selector for the `transferFrom` function.
    */
   function _transferFrom(
     address from,
@@ -239,7 +234,10 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     Asset[] memory assets
   ) internal {
     for (uint256 i; i < assets.length; ) {
-      ITransfer(assets[i].addr).transferFrom(from, to, assets[i].amountOrId);
+      (bool success, bytes memory response) = address(assets[i].addr).call(
+        abi.encodeWithSelector(0x23b872dd, from, to, assets[i].amountOrId)
+      );
+      if (!success) revert(string(response));
       assembly {
         i := add(i, 1)
       }
@@ -251,7 +249,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    */
   function _payNativeEth(address receiver, uint256 value) internal {
     (bool success, ) = receiver.call{value: value}("");
-    if (!success) revert InvalidValue(msg.value, value);
+    if (!success) revert InvalidValue();
   }
 
   /**
