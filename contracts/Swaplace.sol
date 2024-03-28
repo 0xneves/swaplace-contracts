@@ -271,7 +271,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    */
   function encodeConfig(
     address allowed,
-    uint256 expiry,
+    uint32 expiry,
     uint8 valueReceiver,
     uint56 valueToReceive
   ) public pure returns (uint256) {
