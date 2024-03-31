@@ -44,18 +44,18 @@ function makeSwap(address owner, address allowed, uint256 expiry, struct ISwap.A
 
 _See {ISwapFactory-makeSwap}._
 
-### encodeId
+### encode
 
 ```solidity
-function encodeId(address allowed, uint256 expiry) public pure returns (uint256)
+function encode(address allowed, uint256 expiry) public pure returns (uint256)
 ```
 
-_See {ISwapFactory-encodeId}._
+_See {ISwapFactory-encode}._
 
-### decodeId
+### decode
 
 ```solidity
-function decodeId(uint256 config) public pure returns (address, uint256)
+function decode(uint256 config) public pure returns (address, uint256)
 ```
 
-_See {ISwapFactory-decodeId}._
+_See {ISwapFactory-decode}._

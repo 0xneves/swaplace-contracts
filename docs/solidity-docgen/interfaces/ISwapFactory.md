@@ -26,19 +26,19 @@ Requirements:
 - `expiry` cannot be in the past timestamp.
 - `biding` and `asking` cannot be empty.\_
 
-### encodeId
+### encode
 
 ```solidity
-function encodeId(address allowed, uint256 expiry) external pure returns (uint256)
+function encode(address allowed, uint256 expiry) external pure returns (uint256)
 ```
 
 _Packs `allowed` and the `expiry`.
 This function returns the bitwise packing of `allowed` and `expiry` as a uint256._
 
-### decodeId
+### decode
 
 ```solidity
-function decodeId(uint256 config) external pure returns (address, uint256)
+function decode(uint256 config) external pure returns (address, uint256)
 ```
 
 _Parsing the `config`.

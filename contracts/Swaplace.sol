@@ -15,7 +15,7 @@ import {ITransfer} from "./interfaces/ITransfer.sol";
  */
 contract Swaplace is ISwaplace, IErrors, IERC165 {
   /// @dev Swap Identifier counter.
-  uint256 private _totalSwaps;
+  uint96 private _totalSwaps;
 
   /// @dev Mapping of Swap ID to Swap structs. See {ISwap-Swap/LightSwap}.
   mapping(uint256 => Swap) private _swaps;
@@ -24,7 +24,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
   /**
    * @dev Returns the total amount of created swaps in this contract.
    */
-  function totalSwaps() public view returns (uint256) {
+  function totalSwaps() public view returns (uint96) {
     return _totalSwaps;
   }
 
@@ -50,7 +50,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
     }
 
-    uint256 swapId = encodeId(msg.sender, _totalSwaps);
+    uint256 swapId = encode(msg.sender, _totalSwaps);
     _swaps[swapId] = swap;
 
     (
@@ -79,7 +79,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       sstore(_totalSwaps.slot, add(sload(_totalSwaps.slot), 1))
     }
 
-    uint256 swapId = encodeId(msg.sender, _totalSwaps);
+    uint256 swapId = encode(msg.sender, _totalSwaps);
     _lightswaps[swapId] = swap;
 
     (
@@ -105,7 +105,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     uint256 swapId,
     address receiver
   ) public payable returns (bool) {
-    (address owner, ) = decodeId(swapId);
+    (address owner, ) = decode(swapId);
     Swap memory swap = _swaps[swapId];
 
     (
@@ -144,8 +144,8 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
     uint256 swapId,
     address receiver
   ) public payable returns (bool) {
-    (address owner, ) = decodeId(swapId);
-    Swap memory swap = _swaps[swapId];
+    (address owner, ) = decode(swapId);
+    LightSwap memory swap = _lightswaps[swapId];
 
     (
       address allowed,
@@ -168,8 +168,8 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
       }
     }
 
-    _transferFrom(msg.sender, owner, swap.asking);
-    _transferFrom(owner, receiver, swap.biding);
+    _lightTransferFrom(msg.sender, owner, swap.asking);
+    _lightTransferFrom(owner, receiver, swap.biding);
 
     emit SwapAccepted(swapId, owner, msg.sender);
 
@@ -180,7 +180,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    * @dev See {ISwaplace-cancelSwap}.
    */
   function cancelSwap(uint256 swapId) public {
-    (address owner, ) = decodeId(swapId);
+    (address owner, ) = decode(swapId);
     if (owner != msg.sender) revert InvalidAddress();
 
     (
@@ -204,7 +204,7 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
    * @dev See {ISwaplace-cancelLightSwap}.
    */
   function cancelLightSwap(uint256 swapId) public {
-    (address owner, ) = decodeId(swapId);
+    (address owner, ) = decode(swapId);
     if (owner != msg.sender) revert InvalidAddress();
 
     (
@@ -245,6 +245,27 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
   }
 
   /**
+   * @dev Transfer 'assets' from 'from' to 'to'. But with less gas.
+   * Where 0x23b872dd is the selector of the `transferFrom` function.
+   */
+  function _lightTransferFrom(
+    address from,
+    address to,
+    LightAsset[] memory assets
+  ) internal {
+    for (uint256 i; i < assets.length; ) {
+      (address tokenAddr, uint96 amountOrId) = decode(assets[i].addrAmountOrId);
+      (bool success, ) = address(tokenAddr).call(
+        abi.encodeWithSelector(0x23b872dd, from, to, amountOrId)
+      );
+      if (!success) revert InvalidCall();
+      assembly {
+        i := add(i, 1)
+      }
+    }
+  }
+
+  /**
    * @dev Pay native Ether to the receiver.
    */
   function _payNativeEth(address receiver, uint256 value) internal {
@@ -253,17 +274,17 @@ contract Swaplace is ISwaplace, IErrors, IERC165 {
   }
 
   /**
-   * @dev See {ISwapFactory-encodeId}.
+   * @dev See {ISwapFactory-encode}.
    */
-  function encodeId(address addr, uint256 value) public pure returns (uint256) {
+  function encode(address addr, uint96 value) public pure returns (uint256) {
     return (uint256(uint160(addr)) << 96) | uint256(value);
   }
 
   /**
-   * @dev See {ISwapFactory-decodeId}.
+   * @dev See {ISwapFactory-decode}.
    */
-  function decodeId(uint256 config) public pure returns (address, uint256) {
-    return (address(uint160(config >> 96)), uint256(config));
+  function decode(uint256 config) public pure returns (address, uint96) {
+    return (address(uint160(config >> 96)), uint96(config));
   }
 
   /**

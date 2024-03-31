@@ -1,30 +1,28 @@
 import { ethers } from "hardhat";
 
 /**
- * @dev See {ISwapFactory-Asset}.
+ * @dev See {ISwapFactory-LightAsset}.
  */
-export interface Asset {
-  addr: string;
-  amountOrId: bigint;
+export interface LightAsset {
+  addrAmountOrId: bigint;
 }
 
 /**
- * @dev See {ISwap-Swap}.
+ * @dev See {ISwap-LightSwap}.
  */
-export interface Swap {
-  owner: string;
+export interface LightSwap {
   config: number;
-  biding: Asset[];
-  asking: Asset[];
+  biding: LightAsset[];
+  asking: LightAsset[];
 }
 
 /**
  * @dev See {ISwapFactory-makeAsset}.
  */
-export async function makeAsset(
+export async function makeLightAsset(
   addr: string,
   amountOrId: number | bigint,
-): Promise<Asset> {
+): Promise<LightAsset> {
   // validate if its an ethereum address
   if (!ethers.utils.isAddress(addr)) {
     throw new Error("InvalidAddressFormat");
@@ -35,36 +33,50 @@ export async function makeAsset(
     throw new Error("AmountOrIdCannotBeNegative");
   }
 
+  if (amountOrId > BigInt(2) ** BigInt(96) - BigInt(1)) {
+    throw new Error("Can't be bigger than uint96");
+  }
+
   /**
    * @dev Create a new Asset type described by the contract interface.
    *
    * NOTE: If the amount is in number format, it will be converted to bigint.
    * EVM works with a lot of decimals and might overload using number type.
    */
-  const asset: Asset = {
-    addr: addr,
-    amountOrId: typeof amountOrId == "number" ? BigInt(amountOrId) : amountOrId,
+  const asset: LightAsset = {
+    addrAmountOrId: (BigInt(addr) << BigInt(96)) | BigInt(amountOrId),
   };
 
   return asset;
 }
 
+function decodeConfig(config: number): [bigint, bigint, bigint, bigint] {
+  return [
+    (BigInt(config) >> BigInt(96)) & ((BigInt(1) << BigInt(160)) - BigInt(1)),
+    (BigInt(config) >> BigInt(64)) & ((BigInt(1) << BigInt(32)) - BigInt(1)),
+    (BigInt(config) >> BigInt(56)) & ((BigInt(1) << BigInt(8)) - BigInt(1)),
+    BigInt(config) & ((BigInt(1) << BigInt(56)) - BigInt(1)),
+  ];
+}
+
 /**
- * @dev See {ISwapFactory-makeSwap}.
+ * @dev See {ISwapFactory-makeLightSwap}.
  */
-export async function makeSwap(
-  owner: any,
+export async function makeLightSwap(
   config: any,
-  biding: Asset[],
-  asking: Asset[],
+  biding: LightAsset[],
+  asking: LightAsset[],
 ) {
-  const expiry: bigint =
-    BigInt(config) & ((BigInt(1) << BigInt(96)) - BigInt(1));
+  const [allowed, expiry, valueReceiver, valueToReceive] = decodeConfig(config);
+
+  if (expiry > BigInt(2) ** BigInt(32) - BigInt(1)) {
+    throw new Error("InvalidExpiryTooBig");
+  }
 
   // check for the current `block.timestamp` because `expiry` cannot be in the past
   const currentTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
   if (expiry < currentTimestamp) {
-    throw new Error("InvalidExpiry");
+    throw new Error("InvalidExpiryInThePast");
   }
 
   /**
@@ -78,8 +90,7 @@ export async function makeSwap(
     throw new Error("InvalidAssetsLength");
   }
 
-  const swap: Swap = {
-    owner: owner,
+  const swap: LightSwap = {
     config: config,
     biding: biding,
     asking: asking,
@@ -107,8 +118,7 @@ export async function makeSwap(
  * - `bidingAddr` and `bidingAmountOrId` must have the same length.
  * - `askingAddr` and `askingAmountOrId` must have the same length.
  */
-export async function composeSwap(
-  owner: any,
+export async function composeLightSwap(
   config: any,
   bidingAddr: any[],
   bidingAmountOrId: any[],
@@ -126,19 +136,19 @@ export async function composeSwap(
   // push new assets to the array of bids and asks
   const biding: any[] = [];
   bidingAddr.forEach(async (addr, index) => {
-    biding.push(await makeAsset(addr, bidingAmountOrId[index]));
+    biding.push(await makeLightAsset(addr, bidingAmountOrId[index]));
   });
 
   const asking: any[] = [];
   askingAddr.forEach(async (addr, index) => {
-    asking.push(await makeAsset(addr, askingAmountOrId[index]));
+    asking.push(await makeLightAsset(addr, askingAmountOrId[index]));
   });
 
-  return await makeSwap(owner, config, biding, asking);
+  return await makeLightSwap(config, biding, asking);
 }
 
 module.exports = {
-  makeAsset,
-  makeSwap,
-  composeSwap,
+  makeLightAsset,
+  makeLightSwap,
+  composeLightSwap,
 };
